@@ -9,26 +9,37 @@ LABEL org.opencontainers.image.base.name="docker.io/library/node:22-bookworm" \
   org.opencontainers.image.title="OpenClaw" \
   org.opencontainers.image.description="OpenClaw gateway and CLI runtime container image"
 
-# ── 切换阿里云 apt 源 + 安装 Python 3.12 + 科学计算包 ────────────────────────
+# ── Stage 0: 用官方 Python 3.12 镜像预装科学计算包 ───────────────────────────
+FROM python:3.12-bookworm AS python312
+RUN pip install --no-cache-dir "numpy==1.26.3" "pandas==2.2.0"
+
+# ── 主镜像 ───────────────────────────────────────────────────────────────────
+FROM node:22-bookworm@sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935
+
+LABEL org.opencontainers.image.base.name="docker.io/library/node:22-bookworm" \
+  org.opencontainers.image.base.digest="sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935" \
+  org.opencontainers.image.source="https://github.com/openclaw/openclaw" \
+  org.opencontainers.image.url="https://openclaw.ai" \
+  org.opencontainers.image.documentation="https://docs.openclaw.ai/install/docker" \
+  org.opencontainers.image.licenses="MIT" \
+  org.opencontainers.image.title="OpenClaw" \
+  org.opencontainers.image.description="OpenClaw gateway and CLI runtime container image"
+
+# 从 python312 stage 复制 Python 3.12（两者都是 bookworm，共享库兼容）
 USER root
-RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
-    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null; \
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      python3.12 python3.12-dev python3-pip && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
-    pip3 install --no-cache-dir --break-system-packages \
-      -i https://mirrors.aliyun.com/pypi/simple/ \
-      "numpy==1.26.3" \
-      "pandas==2.2.0" && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY --from=python312 /usr/local/bin/python3.12 /usr/local/bin/python3.12
+COPY --from=python312 /usr/local/bin/pip3.12 /usr/local/bin/pip3.12
+COPY --from=python312 /usr/local/lib/python3.12 /usr/local/lib/python3.12
+COPY --from=python312 /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so.1.0
+RUN ldconfig && \
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python
 
 # 写入 OpenClaw 最小配置（FC 沙箱必须）
 RUN mkdir -p /home/node/.openclaw && \
     printf '{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}' \
     > /home/node/.openclaw/openclaw.json && \
     chown -R node:node /home/node/.openclaw
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Install Bun (required for build scripts)
 RUN curl -fsSL https://bun.sh/install | bash
