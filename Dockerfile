@@ -9,16 +9,16 @@ LABEL org.opencontainers.image.base.name="docker.io/library/node:22-bookworm" \
   org.opencontainers.image.title="OpenClaw" \
   org.opencontainers.image.description="OpenClaw gateway and CLI runtime container image"
 
-# ── 新增：Python 3.12（从 bookworm-backports 安装）+ numpy + pandas ──────────
+# ── 切换阿里云 apt 源 + 安装 Python 3.12 + 科学计算包 ────────────────────────
 USER root
-RUN echo "deb http://deb.debian.org/debian bookworm-backports main" \
-      > /etc/apt/sources.list.d/backports.list && \
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null; \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      -t bookworm-backports python3.12 python3.12-dev python3.12-venv && \
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
+      python3.12 python3.12-dev python3-pip && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
-    python3.12 -m pip install --no-cache-dir \
+    pip3 install --no-cache-dir --break-system-packages \
+      -i https://mirrors.aliyun.com/pypi/simple/ \
       "numpy==1.26.3" \
       "pandas==2.2.0" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
