@@ -133,13 +133,15 @@ USER root
 RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
  && chmod 755 /app/openclaw.mjs
 
-# 创建启动脚本：运行时写入配置文件后再启动网关，避免 FC 沙箱构建时文件被覆盖
-RUN printf '#!/bin/sh\nmkdir -p "$HOME/.openclaw"\ncat > "$HOME/.openclaw/openclaw.json" <<OCEOF\n{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}\nOCEOF\nexec openclaw "$@"\n' > /usr/local/bin/openclaw-entrypoint \
- && chmod 755 /usr/local/bin/openclaw-entrypoint
+# 自定义 ENTRYPOINT：任何命令执行前先写配置文件，然后透传给 node entrypoint
+# 这样 FC 沙箱无论传什么 CMD 都能自动获得正确配置
+RUN printf '#!/bin/sh\nmkdir -p "$HOME/.openclaw"\ncat > "$HOME/.openclaw/openclaw.json" <<OCEOF\n{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}\nOCEOF\nexec docker-entrypoint.sh "$@"\n' > /usr/local/bin/openclaw-docker-entrypoint \
+ && chmod 755 /usr/local/bin/openclaw-docker-entrypoint
 
 ENV NODE_ENV=production
 USER node
 
+ENTRYPOINT ["openclaw-docker-entrypoint"]
 HEALTHCHECK --interval=3m --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "const p=process.env.OPENCLAW_GATEWAY_PORT||'18789'; fetch('http://127.0.0.1:'+p+'/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
