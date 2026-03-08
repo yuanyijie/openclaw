@@ -133,6 +133,10 @@ USER root
 RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
  && chmod 755 /app/openclaw.mjs
 
+# 创建启动脚本：运行时写入配置文件后再启动网关，避免 FC 沙箱构建时文件被覆盖
+RUN printf '#!/bin/sh\nmkdir -p "$HOME/.openclaw"\ncat > "$HOME/.openclaw/openclaw.json" <<OCEOF\n{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}\nOCEOF\nexec openclaw "$@"\n' > /usr/local/bin/openclaw-entrypoint \
+ && chmod 755 /usr/local/bin/openclaw-entrypoint
+
 ENV NODE_ENV=production
 USER node
 
