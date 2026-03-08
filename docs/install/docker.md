@@ -375,6 +375,16 @@ sudo chown -R 1000:1000 /path/to/openclaw-config /path/to/openclaw-workspace
 
 If you choose to run as root for convenience, you accept the security tradeoff.
 
+### Alibaba Cloud AIO Sandbox
+
+To run the gateway image on [Alibaba Cloud AIO Sandbox](https://help.aliyun.com/zh/functioncompute/fc/aio-sandbox) (AgentRun), use a custom container template with:
+
+- **image**: Push this image to ACR (or use a custom registry) and set `image` / `imageRegistryType` in `ContainerConfiguration`.
+- **port**: Set to the same value as the gateway port (default `18789`). If the platform expects port `5000`, either build with `--build-arg OPENCLAW_GATEWAY_PORT_DEFAULT=5000` or set env `OPENCLAW_GATEWAY_PORT=5000` when creating the sandbox.
+- **command**: `["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]`.
+
+The image already includes `gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback` for reverse-proxy / FC-style environments. Health: `GET http://<container>:${OPENCLAW_GATEWAY_PORT}/healthz`.
+
 ### Faster rebuilds (recommended)
 
 To speed up rebuilds, order your Dockerfile so dependency layers are cached.

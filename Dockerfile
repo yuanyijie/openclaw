@@ -25,7 +25,16 @@ LABEL org.opencontainers.image.base.name="docker.io/library/node:22-bookworm" \
   org.opencontainers.image.title="OpenClaw" \
   org.opencontainers.image.description="OpenClaw gateway and CLI runtime container image"
 
-# 从 python312 stage 复制 Python 3.12（两者都是 bookworm，共享库兼容）
+# 阿里云 AIO Sandbox 部署：创建模板时在 ContainerConfiguration 中设置
+# - image: 本镜像（可推送到 ACR）
+# - port: 与 OPENCLAW_GATEWAY_PORT 一致，例如 5000（平台约定）或保留 18789
+# - command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
+# 若使用端口 5000，可构建时 --build-arg OPENCLAW_GATEWAY_PORT_DEFAULT=5000，或运行时注入 ENV OPENCLAW_GATEWAY_PORT=5000
+# 健康检查：平台可调 GET http://<container>:${OPENCLAW_GATEWAY_PORT}/healthz
+
+ARG OPENCLAW_GATEWAY_PORT_DEFAULT=18789
+ENV OPENCLAW_GATEWAY_PORT=${OPENCLAW_GATEWAY_PORT_DEFAULT}
+EXPOSE 18789
 USER root
 COPY --from=python312 /usr/local/bin/python3.12 /usr/local/bin/python3.12
 COPY --from=python312 /usr/local/bin/pip3.12 /usr/local/bin/pip3.12
@@ -36,10 +45,13 @@ RUN ldconfig && \
     ln -sf /usr/local/bin/python3.12 /usr/local/bin/python
 
 # 写入 OpenClaw 最小配置（FC 沙箱必须）
+# 用 OPENCLAW_CONFIG_PATH 固定配置路径，防止 FC 沙箱以非 node 用户运行时 HOME 变化导致配置丢失
 RUN mkdir -p /home/node/.openclaw && \
     printf '{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}' \
     > /home/node/.openclaw/openclaw.json && \
+    chmod 644 /home/node/.openclaw/openclaw.json && \
     chown -R node:node /home/node/.openclaw
+ENV OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json
 
 # Install Bun (required for build scripts)
 RUN curl -fsSL https://bun.sh/install | bash
@@ -124,5 +136,5 @@ ENV NODE_ENV=production
 USER node
 
 HEALTHCHECK --interval=3m --timeout=10s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "const p=process.env.OPENCLAW_GATEWAY_PORT||'18789'; fetch('http://127.0.0.1:'+p+'/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
