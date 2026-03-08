@@ -44,14 +44,13 @@ RUN ldconfig && \
     ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 && \
     ln -sf /usr/local/bin/python3.12 /usr/local/bin/python
 
-# 写入 OpenClaw 最小配置（FC 沙箱必须）
-# 用 OPENCLAW_CONFIG_PATH 固定配置路径，防止 FC 沙箱以非 node 用户运行时 HOME 变化导致配置丢失
-RUN mkdir -p /home/node/.openclaw && \
+# 写入 OpenClaw 最小配置
+# 放在 /etc/openclaw/ 而非 /home/node/，因为 FC 沙箱会在 /home/node 挂载临时卷遮盖镜像内文件
+RUN mkdir -p /etc/openclaw && \
     printf '{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}' \
-    > /home/node/.openclaw/openclaw.json && \
-    chmod 644 /home/node/.openclaw/openclaw.json && \
-    chown -R node:node /home/node/.openclaw
-ENV OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json
+    > /etc/openclaw/openclaw.json && \
+    chmod 644 /etc/openclaw/openclaw.json
+ENV OPENCLAW_CONFIG_PATH=/etc/openclaw/openclaw.json
 
 # Install Bun (required for build scripts)
 RUN curl -fsSL https://bun.sh/install | bash
