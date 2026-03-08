@@ -51,6 +51,8 @@ RUN mkdir -p /etc/openclaw && \
     > /etc/openclaw/openclaw.json && \
     chmod 644 /etc/openclaw/openclaw.json
 ENV OPENCLAW_CONFIG_PATH=/etc/openclaw/openclaw.json
+# 三重保障：即使配置文件和 OPENCLAW_CONFIG_PATH 都被 FC 沙箱吞掉，源码也会检查此环境变量
+ENV OPENCLAW_CONTROL_UI_HOST_HEADER_FALLBACK=1
 
 # Install Bun (required for build scripts)
 RUN curl -fsSL https://bun.sh/install | bash

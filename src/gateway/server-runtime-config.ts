@@ -118,8 +118,10 @@ export async function resolveGatewayRuntimeConfig(params: {
   const controlUiAllowedOrigins = (params.cfg.gateway?.controlUi?.allowedOrigins ?? [])
     .map((value) => value.trim())
     .filter(Boolean);
+  // Also accept env var for containerized deployments where config files may be unavailable
   const dangerouslyAllowHostHeaderOriginFallback =
-    params.cfg.gateway?.controlUi?.dangerouslyAllowHostHeaderOriginFallback === true;
+    params.cfg.gateway?.controlUi?.dangerouslyAllowHostHeaderOriginFallback === true ||
+    process.env.OPENCLAW_CONTROL_UI_HOST_HEADER_FALLBACK === "1";
 
   assertGatewayAuthConfigured(resolvedAuth);
   if (tailscaleMode === "funnel" && authMode !== "password") {
