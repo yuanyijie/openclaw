@@ -133,15 +133,16 @@ USER root
 RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
  && chmod 755 /app/openclaw.mjs
 
-# 自定义 ENTRYPOINT：任何命令执行前先写配置文件，然后透传给 node entrypoint
-# 这样 FC 沙箱无论传什么 CMD 都能自动获得正确配置
-RUN printf '#!/bin/sh\nmkdir -p "$HOME/.openclaw"\ncat > "$HOME/.openclaw/openclaw.json" <<OCEOF\n{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}\nOCEOF\nexec docker-entrypoint.sh "$@"\n' > /usr/local/bin/openclaw-docker-entrypoint \
- && chmod 755 /usr/local/bin/openclaw-docker-entrypoint
+# 直接替换 node 基础镜像的 docker-entrypoint.sh
+# FC 平台强制使用 docker-entrypoint.sh 作为入口点，忽略 Dockerfile ENTRYPOINT
+# 所以必须覆盖 docker-entrypoint.sh 本身，在执行用户命令前注入配置
+RUN printf '#!/bin/sh\nset -e\nmkdir -p "$HOME/.openclaw"\ncat > "$HOME/.openclaw/openclaw.json" <<OCEOF\n{"gateway":{"mode":"local","controlUi":{"dangerouslyAllowHostHeaderOriginFallback":true}}}\nOCEOF\nexec "$@"\n' > /usr/local/bin/docker-entrypoint.sh \
+ && chmod 755 /usr/local/bin/docker-entrypoint.sh
 
 ENV NODE_ENV=production
 USER node
 
-ENTRYPOINT ["openclaw-docker-entrypoint"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 HEALTHCHECK --interval=3m --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "const p=process.env.OPENCLAW_GATEWAY_PORT||'18789'; fetch('http://127.0.0.1:'+p+'/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
