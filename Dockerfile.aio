@@ -44,7 +44,9 @@ RUN CI=true pnpm prune --prod && \
       -o -name "*.ts" -o -name "*.map" -o -name "*.d.mts" \
     \) -delete 2>/dev/null; \
     find node_modules -type d -empty -delete 2>/dev/null; \
-    rm -rf docs skills test scripts src apps .git .github .vscode; \
+    mv docs/reference/templates /tmp/_openclaw_templates && \
+    rm -rf docs skills test scripts src apps .git .github .vscode && \
+    mkdir -p docs/reference && mv /tmp/_openclaw_templates docs/reference/templates; \
     true
 
 # ============================================================
@@ -68,13 +70,15 @@ COPY --from=build /app/dist         /app/openclaw/dist
 COPY --from=build /app/node_modules /app/openclaw/node_modules
 COPY --from=build /app/package.json /app/openclaw/package.json
 COPY --from=build /app/openclaw.mjs /app/openclaw/openclaw.mjs
+COPY --from=build /app/docs/reference/templates /app/openclaw/docs/reference/templates
 RUN chmod 755 /app/openclaw/openclaw.mjs
 
 # --- Fix #2: Create symlink for warning-filter.js ---
 RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning-filter.js
 
-# --- Fix #1: process-compose config (auto-discovered by entrypoint.sh) ---
+# --- Fix #1: process-compose config ---
 COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
+RUN echo "/etc/sandbox/config/process-compose.openclaw.yaml" >> /etc/sandbox/process-compose-files.txt
 
 # --- Fix #6: Nginx configs directly to openresty directories ---
 COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
