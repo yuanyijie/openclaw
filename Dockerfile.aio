@@ -80,6 +80,11 @@ COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-com
 COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
 COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/conf.d/openclaw-routes.conf
 
+# Default openclaw config (Kimi/Moonshot provider, apiKey from env)
+RUN mkdir -p /home/user/.openclaw
+COPY docker/config/openclaw.json /home/user/.openclaw/openclaw.json
+RUN chown -R 1000:1000 /home/user/.openclaw
+
 ENV OPENCLAW_GATEWAY_PORT=18789
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
