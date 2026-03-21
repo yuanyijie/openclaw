@@ -80,10 +80,12 @@ RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning
 COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
 RUN echo "/etc/sandbox/config/process-compose.openclaw.yaml" >> /etc/sandbox/process-compose-files.txt
 
-# --- Nginx configs: staging dir, entrypoint auto-copies to openresty ---
+# --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
 COPY docker/config/nginx-openclaw-upstream.conf /etc/sandbox/config/nginx/http.d/openclaw-upstream.conf
 COPY docker/config/nginx-openclaw-routes.conf   /etc/sandbox/config/nginx/conf.d/openclaw-routes.conf
+COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
+COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/conf.d/openclaw-routes.conf
 
 # Default openclaw config (Kimi/Moonshot provider, apiKey from env)
 RUN mkdir -p /home/user/.openclaw
