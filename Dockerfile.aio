@@ -78,7 +78,7 @@ RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning
 
 # --- Fix #1: process-compose config ---
 COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
-RUN echo "/etc/sandbox/config/process-compose.openclaw.yaml" >> /etc/sandbox/process-compose-files.txt
+RUN echo "process-compose.openclaw.yaml" >> /etc/sandbox/process-compose-files.txt
 
 # --- Fix #6: Nginx configs directly to openresty directories ---
 COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
