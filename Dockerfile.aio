@@ -5,16 +5,6 @@ ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6
 # ============================================================
 FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS build
 
-RUN set -eux; \
-    for attempt in 1 2 3 4 5; do \
-      if curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL https://bun.sh/install | bash; then \
-        break; \
-      fi; \
-      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
-      sleep $((attempt * 2)); \
-    done
-ENV PATH="/root/.bun/bin:${PATH}"
-
 RUN corepack enable
 
 WORKDIR /app
@@ -67,23 +57,30 @@ LABEL description="OpenClaw AI agent extension based on All-in-One"
 
 USER root
 
-COPY --from=build /root/.bun/bin/bun /usr/local/bin/bun
-RUN chmod +x /usr/local/bin/bun
+# --- Fix #3: Install Node.js v22 (openclaw requires >=22.12) ---
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    node --version
 
+# Copy openclaw runtime
 COPY --from=build /app/dist         /app/openclaw/dist
 COPY --from=build /app/node_modules /app/openclaw/node_modules
 COPY --from=build /app/package.json /app/openclaw/package.json
 COPY --from=build /app/openclaw.mjs /app/openclaw/openclaw.mjs
 RUN chmod 755 /app/openclaw/openclaw.mjs
 
+# --- Fix #2: Create symlink for warning-filter.js ---
+RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning-filter.js
+
+# --- Fix #1: process-compose config (auto-discovered by entrypoint.sh) ---
 COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
 
-RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
-COPY docker/config/nginx-openclaw-upstream.conf /etc/sandbox/config/nginx/http.d/openclaw-upstream.conf
-COPY docker/config/nginx-openclaw-routes.conf   /etc/sandbox/config/nginx/conf.d/openclaw-routes.conf
+# --- Fix #6: Nginx configs directly to openresty directories ---
+COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
+COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/conf.d/openclaw-routes.conf
 
-ENV OPENCLAW_GATEWAY_HOST=0.0.0.0 \
-    OPENCLAW_GATEWAY_PORT=18789
+ENV OPENCLAW_GATEWAY_PORT=18789
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["process-compose", "up", "--tui=false", "--no-server"]

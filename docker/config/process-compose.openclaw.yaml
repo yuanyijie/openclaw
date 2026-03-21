@@ -7,7 +7,7 @@ environment:
 
 processes:
   openclaw:
-    command: "bun /app/openclaw/openclaw.mjs gateway --bind lan --port 18789 --allow-unconfigured"
+    command: "node /app/openclaw/openclaw.mjs gateway --port 18789 --allow-unconfigured"
     availability:
       restart: "always"
       backoff_seconds: 3
@@ -23,10 +23,9 @@ processes:
       success_threshold: 1
       failure_threshold: 3
     environment:
-      - OPENCLAW_GATEWAY_HOST=0.0.0.0
       - OPENCLAW_GATEWAY_PORT=18789
       - NODE_ENV=production
-      - HOME=/root
+      - HOME=/home/user
       - OPENCLAW_SKIP_CHANNELS=1
       - OPENCLAW_SKIP_BROWSER_CONTROL_SERVER=1
       - OPENCLAW_DISABLE_BONJOUR=1
