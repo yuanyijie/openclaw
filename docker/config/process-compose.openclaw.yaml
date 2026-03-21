@@ -1,0 +1,39 @@
+version: "0.5"
+
+log_level: info
+
+environment:
+  - PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+processes:
+  openclaw:
+    command: "bun /app/openclaw/openclaw.mjs gateway --bind lan --port 18789 --allow-unconfigured"
+    availability:
+      restart: "always"
+      backoff_seconds: 3
+      max_restarts: 5
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: ${OPENCLAW_GATEWAY_PORT:-18789}
+        path: /healthz
+      initial_delay_seconds: 2
+      period_seconds: 10
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3
+    environment:
+      - OPENCLAW_GATEWAY_HOST=0.0.0.0
+      - OPENCLAW_GATEWAY_PORT=18789
+      - NODE_ENV=production
+      - HOME=/root
+      - OPENCLAW_SKIP_CHANNELS=1
+      - OPENCLAW_SKIP_BROWSER_CONTROL_SERVER=1
+      - OPENCLAW_DISABLE_BONJOUR=1
+    log_configuration:
+      disable_json: true
+      no_metadata: false
+      add_timestamp: true
+      timestamp_format: "2006-01-02 15:04:05.000"
+      fields_to_append:
+        - level=INFO

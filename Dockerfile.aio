@@ -1,0 +1,86 @@
+ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
+
+# ============================================================
+# Stage 1: Build openclaw
+# ============================================================
+FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS build
+
+RUN set -eux; \
+    for attempt in 1 2 3 4 5; do \
+      if curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL https://bun.sh/install | bash; then \
+        break; \
+      fi; \
+      if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+      sleep $((attempt * 2)); \
+    done
+ENV PATH="/root/.bun/bin:${PATH}"
+
+RUN corepack enable
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY ui/package.json ./ui/package.json
+COPY patches ./patches
+COPY extensions ./extensions
+
+RUN NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile
+
+COPY . .
+
+RUN for dir in /app/extensions /app/.agent /app/.agents; do \
+      if [ -d "$dir" ]; then \
+        find "$dir" -type d -exec chmod 755 {} +; \
+        find "$dir" -type f -exec chmod 644 {} +; \
+      fi; \
+    done
+
+RUN pnpm canvas:a2ui:bundle || \
+    (echo "A2UI bundle: creating stub (non-fatal)" && \
+     mkdir -p src/canvas-host/a2ui && \
+     echo "/* A2UI bundle unavailable in this build */" > src/canvas-host/a2ui/a2ui.bundle.js && \
+     echo "stub" > src/canvas-host/a2ui/.bundle.hash && \
+     rm -rf vendor/a2ui apps/shared/OpenClawKit/Tools/CanvasA2UI)
+
+ENV OPENCLAW_PREFER_PNPM=1
+RUN pnpm build:docker
+RUN pnpm ui:build
+
+RUN CI=true pnpm prune --prod && \
+    find dist -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete && \
+    find node_modules -type d -name ".cache" -exec rm -rf {} + 2>/dev/null; \
+    find node_modules -type f \( \
+      -name "*.md" -o -name "LICENSE*" -o -name "CHANGELOG*" \
+      -o -name "*.ts" -o -name "*.map" -o -name "*.d.mts" \
+    \) -delete 2>/dev/null; \
+    find node_modules -type d -empty -delete 2>/dev/null; \
+    rm -rf docs skills test scripts src apps .git .github .vscode; \
+    true
+
+# ============================================================
+# Stage 2: Extend AIO Sandbox image with openclaw
+# ============================================================
+FROM registry.cn-shanghai.aliyuncs.com/fc-demo2/custom-container-repository:sandbox-all-in-one-extend_v0.8.33
+
+LABEL layer="openclaw-extension"
+LABEL description="OpenClaw AI agent extension based on All-in-One Extend"
+
+USER root
+
+COPY --from=build /root/.bun/bin/bun /usr/local/bin/bun
+RUN chmod +x /usr/local/bin/bun
+
+COPY --from=build /app/dist         /app/openclaw/dist
+COPY --from=build /app/node_modules /app/openclaw/node_modules
+COPY --from=build /app/package.json /app/openclaw/package.json
+COPY --from=build /app/openclaw.mjs /app/openclaw/openclaw.mjs
+RUN chmod 755 /app/openclaw/openclaw.mjs
+
+COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
+
+RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
+COPY docker/config/nginx-openclaw-upstream.conf /etc/sandbox/config/nginx/http.d/openclaw-upstream.conf
+COPY docker/config/nginx-openclaw-routes.conf   /etc/sandbox/config/nginx/conf.d/openclaw-routes.conf
+
+ENV OPENCLAW_GATEWAY_HOST=0.0.0.0 \
+    OPENCLAW_GATEWAY_PORT=18789
