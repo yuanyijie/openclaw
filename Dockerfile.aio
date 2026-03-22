@@ -78,7 +78,10 @@ RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning
 
 # --- Fix #1: process-compose config ---
 COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-compose.openclaw.yaml
-RUN echo "/etc/sandbox/config/process-compose.openclaw.yaml" >> /etc/sandbox/process-compose-files.txt
+
+# --- Wrapper entrypoint: injects openclaw into process-compose list at runtime ---
+COPY docker/config/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
+RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 
 # --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
@@ -94,5 +97,5 @@ RUN chown -R 1000:1000 /home/user/.openclaw
 
 ENV OPENCLAW_GATEWAY_PORT=18789
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint-wrapper.sh"]
 CMD ["process-compose", "up", "--tui=false", "--no-server"]
