@@ -7,7 +7,7 @@ environment:
 
 processes:
   openclaw:
-    command: "node /app/openclaw/openclaw.mjs gateway --port 18789 --allow-unconfigured"
+    command: "/usr/bin/node /app/openclaw/openclaw.mjs gateway --port 18789 --allow-unconfigured"
     availability:
       restart: "always"
       backoff_seconds: 3
