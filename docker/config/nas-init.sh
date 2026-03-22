@@ -54,6 +54,9 @@ BUNDLE_REMOTE="${NAS_REMOTE_DIR}/repo.bundle"
 
 log "NAS: ${NAS_ADDR}, remote: ${NAS_REMOTE_DIR}"
 
+# Allow git operations on user-owned directory when running as root
+git config --global --add safe.directory "$OPENCLAW_DIR"
+
 # ============================================
 # 3. Ensure remote directory exists
 # ============================================

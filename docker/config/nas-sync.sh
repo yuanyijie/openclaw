@@ -36,6 +36,9 @@ NAS_ADDR=$(jq -r '.nas_addr' "$CONFIG_FILE")
 NAS_REMOTE_DIR=$(jq -r '.nas_remote_dir' "$CONFIG_FILE")
 BUNDLE_REMOTE="${NAS_REMOTE_DIR}/repo.bundle"
 
+# Allow git operations on user-owned directory when running as root
+git config --global --add safe.directory "$OPENCLAW_DIR"
+
 # Wait for .openclaw to be a git repo (nas-init must finish first)
 while [ ! -d "${OPENCLAW_DIR}/.git" ]; do
   log "Waiting for ${OPENCLAW_DIR}/.git ..."

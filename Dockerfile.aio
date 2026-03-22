@@ -72,12 +72,16 @@ LABEL description="OpenClaw AI agent extension based on All-in-One"
 
 USER root
 
-# --- Install Node.js v22 (openclaw requires >=22.12) + NAS runtime deps ---
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends \
-    nodejs libnfs13 jq git && \
-    rm -rf /var/lib/apt/lists/* && \
-    node --version
+# --- Install Node.js v22 (openclaw requires >=22.12) ---
+RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
+    | tar -xJ -C /usr/local --strip-components=1 \
+    && ln -sf /usr/local/bin/node /usr/bin/node \
+    && node --version
+
+# --- NAS runtime deps ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnfs13 jq git && \
+    rm -rf /var/lib/apt/lists/*
 
 # --- NAS: Copy pre-built nfs-tool binary ---
 COPY --from=nfs-tool-builder /usr/local/bin/nfs-tool /usr/local/bin/nfs-tool
