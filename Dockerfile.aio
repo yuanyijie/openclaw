@@ -55,11 +55,11 @@ RUN CI=true pnpm prune --prod && \
 FROM debian:bookworm-slim AS fuse-nfs-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential git autoconf automake libtool \
+    build-essential ca-certificates curl autoconf automake libtool \
     libnfs-dev libfuse-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://github.com/sahlberg/fuse-nfs/archive/refs/heads/master.tar.gz \
+RUN curl -fsSL https://ghfast.top/https://github.com/sahlberg/fuse-nfs/archive/refs/heads/master.tar.gz \
     -o /tmp/fuse-nfs.tar.gz \
     && tar xzf /tmp/fuse-nfs.tar.gz -C /tmp \
     && cd /tmp/fuse-nfs-master \
