@@ -6,8 +6,23 @@ environment:
   - PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
 processes:
+  nas-init:
+    command: "/usr/local/bin/nas-init.sh"
+    availability:
+      restart: "no"
+    log_configuration:
+      disable_json: true
+      no_metadata: false
+      add_timestamp: true
+      timestamp_format: "2006-01-02 15:04:05.000"
+      fields_to_append:
+        - level=INFO
+
   openclaw:
     command: "/usr/bin/node /app/openclaw/openclaw.mjs gateway --port 18789 --allow-unconfigured"
+    depends_on:
+      nas-init:
+        condition: process_completed_successfully
     availability:
       restart: "always"
       backoff_seconds: 3

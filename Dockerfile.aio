@@ -50,6 +50,24 @@ RUN CI=true pnpm prune --prod && \
     true
 
 # ============================================================
+# Stage 1.5: Build fuse-nfs (FUSE-based NFS client for NAS)
+# ============================================================
+FROM debian:bookworm-slim AS fuse-nfs-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git autoconf automake libtool \
+    libnfs-dev libfuse-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/sahlberg/fuse-nfs.git /tmp/fuse-nfs \
+    && cd /tmp/fuse-nfs \
+    && autoreconf -i \
+    && ./configure \
+    && make -j$(nproc) \
+    && cp fuse/fuse-nfs /usr/local/bin/fuse-nfs \
+    && chmod 755 /usr/local/bin/fuse-nfs
+
+# ============================================================
 # Stage 2: Extend AIO Sandbox image with openclaw
 # ============================================================
 FROM serverless-registry.cn-hangzhou.cr.aliyuncs.com/functionai/sandbox-all-in-one:v0.9.29
@@ -59,11 +77,15 @@ LABEL description="OpenClaw AI agent extension based on All-in-One"
 
 USER root
 
-# --- Fix #3: Install Node.js v22 (openclaw requires >=22.12) ---
+# --- Install Node.js v22 (openclaw requires >=22.12) + NAS runtime deps ---
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
+    apt-get install -y --no-install-recommends \
+    nodejs libfuse2 libnfs13 fuse jq && \
     rm -rf /var/lib/apt/lists/* && \
     node --version
+
+# --- NAS: Copy pre-built fuse-nfs binary ---
+COPY --from=fuse-nfs-builder /usr/local/bin/fuse-nfs /usr/local/bin/fuse-nfs
 
 # Copy openclaw runtime
 COPY --from=build /app/dist         /app/openclaw/dist
@@ -82,6 +104,10 @@ COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-com
 # --- Wrapper entrypoint: injects openclaw into process-compose list at runtime ---
 COPY docker/config/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
 RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
+
+# --- NAS: Initialization script (managed by process-compose) ---
+COPY docker/config/nas-init.sh /usr/local/bin/nas-init.sh
+RUN chmod +x /usr/local/bin/nas-init.sh
 
 # --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
