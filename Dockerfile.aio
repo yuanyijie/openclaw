@@ -75,7 +75,7 @@ USER root
 # --- Upgrade Node.js to v22 (openclaw requires >=22.12) ---
 # Base image has nvm v20 in PATH before /usr/local/bin, so we must
 # overwrite the nvm binary AND /usr/bin/node to ensure v22 everywhere.
-RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
+RUN curl -fsSL https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz \
     | tar -xJ -C /usr/local --strip-components=1 \
     && ln -sf /usr/local/bin/node /usr/bin/node \
     && cp /usr/local/bin/node /usr/local/share/nvm/versions/node/v20.19.4/bin/node \
