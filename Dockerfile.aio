@@ -50,25 +50,17 @@ RUN CI=true pnpm prune --prod && \
     true
 
 # ============================================================
-# Stage 1.5: Build fuse-nfs (FUSE-based NFS client for NAS)
+# Stage 1.5: Build nfs-tool (libnfs-based NFS file operations)
 # ============================================================
-FROM debian:bookworm-slim AS fuse-nfs-builder
+FROM debian:bookworm-slim AS nfs-tool-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential ca-certificates curl autoconf automake libtool \
-    libnfs-dev libfuse-dev pkg-config \
+    build-essential libnfs-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://ghfast.top/https://github.com/sahlberg/fuse-nfs/archive/refs/heads/master.tar.gz \
-    -o /tmp/fuse-nfs.tar.gz \
-    && tar xzf /tmp/fuse-nfs.tar.gz -C /tmp \
-    && cd /tmp/fuse-nfs-master \
-    && autoreconf -i \
-    && ./configure \
-    && make -j$(nproc) \
-    && cp fuse/fuse-nfs /usr/local/bin/fuse-nfs \
-    && chmod 755 /usr/local/bin/fuse-nfs \
-    && rm -rf /tmp/fuse-nfs*
+COPY docker/config/nfs-tool.c /tmp/nfs-tool.c
+RUN gcc -O2 -o /usr/local/bin/nfs-tool /tmp/nfs-tool.c -lnfs \
+    && chmod 755 /usr/local/bin/nfs-tool
 
 # ============================================================
 # Stage 2: Extend AIO Sandbox image with openclaw
@@ -83,12 +75,12 @@ USER root
 # --- Install Node.js v22 (openclaw requires >=22.12) + NAS runtime deps ---
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends \
-    nodejs libfuse2 libnfs13 fuse jq && \
+    nodejs libnfs13 jq git && \
     rm -rf /var/lib/apt/lists/* && \
     node --version
 
-# --- NAS: Copy pre-built fuse-nfs binary ---
-COPY --from=fuse-nfs-builder /usr/local/bin/fuse-nfs /usr/local/bin/fuse-nfs
+# --- NAS: Copy pre-built nfs-tool binary ---
+COPY --from=nfs-tool-builder /usr/local/bin/nfs-tool /usr/local/bin/nfs-tool
 
 # Copy openclaw runtime
 COPY --from=build /app/dist         /app/openclaw/dist
@@ -108,9 +100,10 @@ COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-com
 COPY docker/config/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
 RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 
-# --- NAS: Initialization script (managed by process-compose) ---
+# --- NAS: Init + sync scripts (managed by process-compose) ---
 COPY docker/config/nas-init.sh /usr/local/bin/nas-init.sh
-RUN chmod +x /usr/local/bin/nas-init.sh
+COPY docker/config/nas-sync.sh /usr/local/bin/nas-sync.sh
+RUN chmod +x /usr/local/bin/nas-init.sh /usr/local/bin/nas-sync.sh
 
 # --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
