@@ -59,13 +59,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnfs-dev libfuse-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 https://github.com/sahlberg/fuse-nfs.git /tmp/fuse-nfs \
-    && cd /tmp/fuse-nfs \
+RUN curl -fsSL https://github.com/sahlberg/fuse-nfs/archive/refs/heads/master.tar.gz \
+    -o /tmp/fuse-nfs.tar.gz \
+    && tar xzf /tmp/fuse-nfs.tar.gz -C /tmp \
+    && cd /tmp/fuse-nfs-master \
     && autoreconf -i \
     && ./configure \
     && make -j$(nproc) \
     && cp fuse/fuse-nfs /usr/local/bin/fuse-nfs \
-    && chmod 755 /usr/local/bin/fuse-nfs
+    && chmod 755 /usr/local/bin/fuse-nfs \
+    && rm -rf /tmp/fuse-nfs*
 
 # ============================================================
 # Stage 2: Extend AIO Sandbox image with openclaw
