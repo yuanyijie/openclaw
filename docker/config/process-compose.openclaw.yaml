@@ -59,9 +59,7 @@ processes:
       - NODE_ENV=production
       - HOME=/home/user
       - OPENCLAW_SKIP_CHANNELS=${OPENCLAW_SKIP_CHANNELS:-0}
-      - OPENCLAW_SKIP_BROWSER_CONTROL_SERVER=1
       - OPENCLAW_DISABLE_BONJOUR=1
-      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
     log_configuration:
       disable_json: true
       no_metadata: false

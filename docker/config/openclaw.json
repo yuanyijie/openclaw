@@ -23,21 +23,17 @@
       }
     }
   },
-  "tools": {
-    "browser": {
-      "enabled": true,
-      "cdpUrl": "http://127.0.0.1:18800",
-      "attachOnly": true,
-      "headless": true,
-      "noSandbox": true
-    }
+  "browser": {
+    "cdpUrl": "http://127.0.0.1:18800",
+    "attachOnly": true,
+    "noSandbox": true
   },
   "models": {
     "mode": "merge",
     "providers": {
       "moonshot": {
         "baseUrl": "https://api.moonshot.cn/v1",
-        "apiKey": "${MOONSHOT_API_KEY}",
+        "apiKey": "",
         "api": "openai-completions",
         "models": [
           {

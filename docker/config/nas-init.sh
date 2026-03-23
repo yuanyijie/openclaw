@@ -25,11 +25,12 @@ inject_api_keys() {
 
   [ -f "$config_file" ] || return 0
 
-  local ds_key tavily_key
+  local moonshot_key ds_key tavily_key
+  moonshot_key=$(jq -r '.moonshot_api_key // empty' "$config_file")
   ds_key=$(jq -r '.dashscope_api_key // empty' "$config_file")
   tavily_key=$(jq -r '.tavily_api_key // empty' "$config_file")
 
-  [ -n "$ds_key" ] || [ -n "$tavily_key" ] || return 0
+  [ -n "$moonshot_key" ] || [ -n "$ds_key" ] || [ -n "$tavily_key" ] || return 0
 
   if [ ! -f "$openclaw_json" ]; then
     log "WARN: ${openclaw_json} not found, skipping key injection"
@@ -40,11 +41,17 @@ inject_api_keys() {
   python3 -c "
 import json, sys
 path = sys.argv[1]
-ds_key = sys.argv[2]
-tavily_key = sys.argv[3]
+moonshot_key = sys.argv[2]
+ds_key = sys.argv[3]
+tavily_key = sys.argv[4]
 
 with open(path) as f:
     cfg = json.load(f)
+
+if moonshot_key:
+    providers = cfg.get('models', {}).get('providers', {})
+    if 'moonshot' in providers:
+        providers['moonshot']['apiKey'] = moonshot_key
 
 if ds_key:
     agents = cfg.setdefault('agents', {})
@@ -68,7 +75,7 @@ if tavily_key:
 with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
 print('API keys injected')
-" "$openclaw_json" "$ds_key" "$tavily_key" 2>/dev/null \
+" "$openclaw_json" "$moonshot_key" "$ds_key" "$tavily_key" 2>/dev/null \
     && chown 1000:1000 "$openclaw_json" 2>/dev/null \
     || log "WARN: Failed to inject API keys"
 }
