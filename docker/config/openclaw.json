@@ -1,4 +1,16 @@
 {
+  "gateway": {
+    "auth": {
+      "mode": "none"
+    },
+    "http": {
+      "endpoints": {
+        "chatCompletions": {
+          "enabled": true
+        }
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "model": {
@@ -9,6 +21,15 @@
           "alias": "Kimi K2.5"
         }
       }
+    }
+  },
+  "tools": {
+    "browser": {
+      "enabled": true,
+      "cdpUrl": "http://127.0.0.1:18800",
+      "attachOnly": true,
+      "headless": true,
+      "noSandbox": true
     }
   },
   "models": {
