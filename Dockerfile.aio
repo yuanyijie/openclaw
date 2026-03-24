@@ -95,6 +95,7 @@ COPY --from=build /app/node_modules /app/openclaw/node_modules
 COPY --from=build /app/package.json /app/openclaw/package.json
 COPY --from=build /app/openclaw.mjs /app/openclaw/openclaw.mjs
 COPY --from=build /app/docs/reference/templates /app/openclaw/docs/reference/templates
+COPY --from=build /app/extensions /app/openclaw/extensions
 RUN chmod 755 /app/openclaw/openclaw.mjs
 
 # --- Fix #2: Create symlink for warning-filter.js ---
@@ -135,6 +136,7 @@ COPY docker/config/openclaw.json /home/user/.openclaw/openclaw.json
 RUN chown -R 1000:1000 /home/user/.openclaw
 
 ENV OPENCLAW_GATEWAY_PORT=18789
+ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/openclaw/extensions
 
 ENTRYPOINT ["/usr/local/bin/entrypoint-wrapper.sh"]
 CMD ["process-compose", "up", "--tui=false", "--no-server"]
