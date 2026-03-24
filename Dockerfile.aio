@@ -136,6 +136,12 @@ ENV SXBT_BROWSER_CDP_PORT=18800
 # Default openclaw config (Kimi/Moonshot provider, apiKey from env)
 RUN mkdir -p /home/user/.openclaw
 COPY docker/config/openclaw.json /home/user/.openclaw/openclaw.json
+
+# --- Pre-install WeChat channel plugin ---
+RUN HOME=/home/user \
+    npx -y @tencent-weixin/openclaw-weixin-cli@latest install 2>&1 \
+    || echo "WARN: WeChat plugin install failed (non-fatal)"
+
 RUN chown -R 1000:1000 /home/user/.openclaw
 
 ENV OPENCLAW_GATEWAY_PORT=18789
