@@ -1,10 +1,10 @@
 #!/bin/bash
-# nas-init.sh — Restore .openclaw from NAS git bundle + inject API keys
+# nas-init.sh — Restore .openclaw from NAS git bundle + inject API keys + run hooks
 #
 # One-shot process managed by process-compose.
 # Waits for /tmp/claw-config.json (written by backend via write_file API),
 # then downloads and restores the git bundle from NAS.
-# Finally injects API keys (dashscope, tavily) into openclaw.json.
+# Runs lifecycle hooks and injects API keys into openclaw.json.
 
 set -euo pipefail
 
@@ -12,9 +12,31 @@ CONFIG_FILE="/tmp/claw-config.json"
 TIMEOUT=60
 OPENCLAW_DIR="/home/user/.openclaw"
 BUNDLE_LOCAL="/tmp/repo.bundle"
+HOOKS_DIR="/tmp/claw-hooks"
 LOG_PREFIX="[nas-init]"
 
 log() { echo "${LOG_PREFIX} $(date '+%H:%M:%S') $*"; }
+
+# ============================================
+# Helper: Run a lifecycle hook from claw-config.json
+# ============================================
+run_hook() {
+  local hook_name="$1"
+  local script
+  script=$(jq -r ".hooks.${hook_name} // empty" "$CONFIG_FILE" 2>/dev/null)
+  [ -n "$script" ] || return 0
+
+  log "Running hook: ${hook_name}"
+  mkdir -p "$HOOKS_DIR"
+  echo "$script" > "${HOOKS_DIR}/${hook_name}.sh"
+  chmod +x "${HOOKS_DIR}/${hook_name}.sh"
+  local exit_code=0
+  bash "${HOOKS_DIR}/${hook_name}.sh" 2>&1 | while IFS= read -r line; do
+    log "[hook:${hook_name}] $line"
+  done || exit_code=$?
+  log "Hook ${hook_name} finished (exit=${exit_code})"
+  return 0
+}
 
 # ============================================
 # Helper: Inject API keys from claw-config.json
@@ -104,7 +126,9 @@ NAS_ENABLED=$(jq -r '.nas_enabled // false' "$CONFIG_FILE")
 
 if [ "$NAS_ENABLED" != "true" ]; then
   log "NAS disabled, skipping NAS restore"
+  run_hook "post_restore"
   inject_api_keys "$CONFIG_FILE"
+  run_hook "pre_start"
   log "Done"
   exit 0
 fi
@@ -114,7 +138,9 @@ NAS_REMOTE_DIR=$(jq -r '.nas_remote_dir' "$CONFIG_FILE")
 
 if [ -z "$NAS_ADDR" ] || [ "$NAS_ADDR" = "null" ]; then
   log "ERROR: nas_addr is empty"
+  run_hook "post_restore"
   inject_api_keys "$CONFIG_FILE"
+  run_hook "pre_start"
   log "Done"
   exit 0
 fi
@@ -194,9 +220,12 @@ GITIGNORE
 fi
 
 # ============================================
-# 6. Inject API keys (runs for ALL code paths)
+# 6. Run hooks + inject API keys
 # ============================================
+run_hook "post_restore"
 inject_api_keys "$CONFIG_FILE"
+run_hook "pre_start"
 
+chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
 log "Done"
 exit 0

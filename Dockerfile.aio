@@ -114,7 +114,8 @@ RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 # --- NAS: Init + sync scripts (managed by process-compose) ---
 COPY docker/config/nas-init.sh /usr/local/bin/nas-init.sh
 COPY docker/config/nas-sync.sh /usr/local/bin/nas-sync.sh
-RUN chmod +x /usr/local/bin/nas-init.sh /usr/local/bin/nas-sync.sh
+COPY docker/config/hook-runner.sh /usr/local/bin/hook-runner.sh
+RUN chmod +x /usr/local/bin/nas-init.sh /usr/local/bin/nas-sync.sh /usr/local/bin/hook-runner.sh
 
 # --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
