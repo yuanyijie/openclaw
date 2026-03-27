@@ -24,7 +24,7 @@
     }
   },
   "browser": {
-    "cdpUrl": "ws://localhost:3000/ws/automation",
+    "cdpUrl": "http://127.0.0.1:18800",
     "attachOnly": true,
     "noSandbox": true
   },
