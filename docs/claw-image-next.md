@@ -135,7 +135,7 @@ COPY docker/config/hook-runner.sh /usr/local/bin/hook-runner.sh
 
 ### 5. openclaw.json
 
-保持当前状态（无 `tools.browser`）。浏览器集成通过 top-level `browser` 配置项连接 browsertool CDP proxy。
+保持当前状态（无 `tools.browser`）。默认 `browser.cdpUrl` 为 `http://127.0.0.1:18800`（Chrome `--remote-debugging-port=18800`），OpenClaw 通过 `/json/version` 解析 WebSocket。
 
 ## 后端集成指南
 
