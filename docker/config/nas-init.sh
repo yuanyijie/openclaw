@@ -181,20 +181,19 @@ else
 fi
 
 if [ "$BUNDLE_OK" = "true" ] && [ -f "$BUNDLE_LOCAL" ]; then
-    log "Bundle downloaded, restoring..."
+  log "Bundle downloaded, restoring..."
 
-    if [ -d "$OPENCLAW_DIR" ] && [ ! -L "$OPENCLAW_DIR" ]; then
-      mv "$OPENCLAW_DIR" "${OPENCLAW_DIR}.default"
-    fi
-
-    git clone -q "$BUNDLE_LOCAL" "$OPENCLAW_DIR" 2>/dev/null
-    cd "$OPENCLAW_DIR" && git remote remove origin 2>/dev/null || true
-
-    log "Restored from NAS ($(cd "$OPENCLAW_DIR" && git log --oneline | wc -l) commits)"
-    rm -f "$BUNDLE_LOCAL"
-    chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
-    NAS_RESTORED=true
+  if [ -d "$OPENCLAW_DIR" ] && [ ! -L "$OPENCLAW_DIR" ]; then
+    mv "$OPENCLAW_DIR" "${OPENCLAW_DIR}.default"
   fi
+
+  git clone -q "$BUNDLE_LOCAL" "$OPENCLAW_DIR" 2>/dev/null
+  cd "$OPENCLAW_DIR" && git remote remove origin 2>/dev/null || true
+
+  log "Restored from NAS ($(cd "$OPENCLAW_DIR" && git log --oneline | wc -l) commits)"
+  rm -f "$BUNDLE_LOCAL"
+  chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
+  NAS_RESTORED=true
 fi
 
 # ============================================
