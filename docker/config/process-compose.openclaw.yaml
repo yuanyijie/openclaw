@@ -19,7 +19,7 @@ processes:
         - level=INFO
 
   nas-sync:
-    command: "su user -c '/usr/local/bin/nas-sync.sh'"
+    command: "/usr/local/bin/nas-sync.sh"
     depends_on:
       nas-init:
         condition: process_completed_successfully

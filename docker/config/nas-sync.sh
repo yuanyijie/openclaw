@@ -1,10 +1,11 @@
 #!/bin/bash
 # nas-sync.sh — Periodically sync .openclaw changes to NAS via git bundle
 #
-# Runs continuously under process-compose. Every SYNC_INTERVAL seconds:
+# Runs continuously under process-compose (as root, matching nas-init's
+# NFS uid via root_squash → nobody). Every SYNC_INTERVAL seconds:
 #   1. git add + commit (if changes exist)
-#   2. git bundle create
-#   3. nfs-tool write (atomic: tmp + rename)
+#   2. git bundle create + verify
+#   3. nfs-tool write (atomic: tmp + rename), with .prev backup
 #   4. Periodic gc / squash to control bundle size
 
 set -euo pipefail
@@ -35,6 +36,9 @@ fi
 NAS_ADDR=$(jq -r '.nas_addr' "$CONFIG_FILE")
 NAS_REMOTE_DIR=$(jq -r '.nas_remote_dir' "$CONFIG_FILE")
 BUNDLE_REMOTE="${NAS_REMOTE_DIR}/repo.bundle"
+
+# Running as root on user-owned directory
+git config --global --add safe.directory "$OPENCLAW_DIR"
 
 # Wait for .openclaw to be a git repo (nas-init must finish first)
 while [ ! -d "${OPENCLAW_DIR}/.git" ]; do
@@ -73,6 +77,16 @@ while true; do
     continue
   fi
 
+  # Verify bundle before uploading
+  if ! git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
+    log "WARN: bundle verify failed, skipping upload"
+    rm -f "$BUNDLE_LOCAL"
+    continue
+  fi
+
+  # Backup current bundle as .prev before overwriting
+  nfs-tool "$NAS_ADDR" rename "$BUNDLE_REMOTE" "${BUNDLE_REMOTE}.prev" 2>/dev/null || true
+
   # Atomic upload: write to .tmp then rename
   if nfs-tool "$NAS_ADDR" write "${BUNDLE_REMOTE}.tmp" "$BUNDLE_LOCAL" 2>/dev/null && \
      nfs-tool "$NAS_ADDR" rename "${BUNDLE_REMOTE}.tmp" "$BUNDLE_REMOTE" 2>/dev/null; then
@@ -81,8 +95,11 @@ while true; do
     log "Synced (${bundle_size} bytes, ${commit_count} commits)"
   else
     log "WARN: upload failed, will retry next cycle"
-    # Clean up partial tmp file on NAS
     nfs-tool "$NAS_ADDR" rm "${BUNDLE_REMOTE}.tmp" 2>/dev/null || true
+    # Restore .prev if main bundle was lost during failed upload
+    if ! nfs-tool "$NAS_ADDR" read "$BUNDLE_REMOTE" /dev/null 2>/dev/null; then
+      nfs-tool "$NAS_ADDR" rename "${BUNDLE_REMOTE}.prev" "$BUNDLE_REMOTE" 2>/dev/null || true
+    fi
   fi
 
   rm -f "$BUNDLE_LOCAL"

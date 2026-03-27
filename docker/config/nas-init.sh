@@ -163,11 +163,24 @@ nfs-tool "$NAS_ADDR" mkdirp "$NAS_REMOTE_DIR" 2>/dev/null || true
 # ============================================
 NAS_RESTORED=false
 
-if nfs-tool "$NAS_ADDR" read "$BUNDLE_REMOTE" "$BUNDLE_LOCAL" 2>/dev/null; then
-  if ! git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
-    log "WARN: Bundle corrupted, falling back to first-time setup"
-    rm -f "$BUNDLE_LOCAL"
+BUNDLE_OK=false
+if nfs-tool "$NAS_ADDR" read "$BUNDLE_REMOTE" "$BUNDLE_LOCAL" 2>/dev/null && \
+   git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
+  BUNDLE_OK=true
+else
+  rm -f "$BUNDLE_LOCAL"
+  log "Main bundle unavailable or corrupted, trying .prev fallback..."
+  if nfs-tool "$NAS_ADDR" read "${BUNDLE_REMOTE}.prev" "$BUNDLE_LOCAL" 2>/dev/null && \
+     git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
+    BUNDLE_OK=true
+    log "Recovered from .prev bundle"
   else
+    rm -f "$BUNDLE_LOCAL"
+    log "WARN: No valid bundle available, falling back to first-time setup"
+  fi
+fi
+
+if [ "$BUNDLE_OK" = "true" ] && [ -f "$BUNDLE_LOCAL" ]; then
     log "Bundle downloaded, restoring..."
 
     if [ -d "$OPENCLAW_DIR" ] && [ ! -L "$OPENCLAW_DIR" ]; then
