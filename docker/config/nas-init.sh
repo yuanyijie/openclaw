@@ -1,17 +1,17 @@
 #!/bin/bash
-# nas-init.sh — Restore .openclaw from NAS git bundle + inject API keys + run hooks
+# nas-init.sh — Wait for claw-config.json, run lifecycle hooks, inject API keys
 #
 # One-shot process managed by process-compose.
-# Waits for /tmp/claw-config.json (written by backend via write_file API),
-# then downloads and restores the git bundle from NAS.
-# Runs lifecycle hooks and injects API keys into openclaw.json.
+# NAS persistence is handled natively by the platform (directory mount).
+# This script only handles:
+#   1. Lifecycle hooks (post_restore, pre_start) from claw-config.json
+#   2. API key injection into openclaw.json
 
 set -euo pipefail
 
 CONFIG_FILE="/tmp/claw-config.json"
 TIMEOUT=60
-OPENCLAW_DIR="/home/user/.openclaw"
-BUNDLE_LOCAL="/tmp/repo.bundle"
+OPENCLAW_DIR="/home/user/capy/.openclaw"
 HOOKS_DIR="/tmp/claw-hooks"
 LOG_PREFIX="[nas-init]"
 
@@ -112,7 +112,7 @@ while [ ! -f "$CONFIG_FILE" ]; do
   sleep 1
   elapsed=$((elapsed + 1))
   if [ $elapsed -ge $TIMEOUT ]; then
-    log "WARN: Timeout waiting for config, starting without NAS"
+    log "WARN: Timeout waiting for config, starting without it"
     exit 0
   fi
 done
@@ -120,124 +120,11 @@ done
 log "Config received after ${elapsed}s"
 
 # ============================================
-# 2. Parse config
-# ============================================
-NAS_ENABLED=$(jq -r '.nas_enabled // false' "$CONFIG_FILE")
-
-if [ "$NAS_ENABLED" != "true" ]; then
-  log "NAS disabled, skipping NAS restore"
-  run_hook "post_restore"
-  inject_api_keys "$CONFIG_FILE"
-  run_hook "pre_start"
-  log "Done"
-  exit 0
-fi
-
-NAS_ADDR=$(jq -r '.nas_addr' "$CONFIG_FILE")
-NAS_REMOTE_DIR=$(jq -r '.nas_remote_dir' "$CONFIG_FILE")
-
-if [ -z "$NAS_ADDR" ] || [ "$NAS_ADDR" = "null" ]; then
-  log "ERROR: nas_addr is empty"
-  run_hook "post_restore"
-  inject_api_keys "$CONFIG_FILE"
-  run_hook "pre_start"
-  log "Done"
-  exit 0
-fi
-
-BUNDLE_REMOTE="${NAS_REMOTE_DIR}/repo.bundle"
-
-log "NAS: ${NAS_ADDR}, remote: ${NAS_REMOTE_DIR}"
-
-# Allow git operations on user-owned directory when running as root
-git config --global --add safe.directory "$OPENCLAW_DIR"
-
-# ============================================
-# 3. Ensure remote directory exists
-# ============================================
-log "Ensuring remote directory: ${NAS_REMOTE_DIR}"
-nfs-tool "$NAS_ADDR" mkdirp "$NAS_REMOTE_DIR" 2>/dev/null || true
-
-# ============================================
-# 4. Try to restore from NAS bundle
-# ============================================
-NAS_RESTORED=false
-
-BUNDLE_OK=false
-if nfs-tool "$NAS_ADDR" read "$BUNDLE_REMOTE" "$BUNDLE_LOCAL" 2>/dev/null && \
-   git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
-  BUNDLE_OK=true
-else
-  rm -f "$BUNDLE_LOCAL"
-  log "Main bundle unavailable or corrupted, trying .prev fallback..."
-  if nfs-tool "$NAS_ADDR" read "${BUNDLE_REMOTE}.prev" "$BUNDLE_LOCAL" 2>/dev/null && \
-     git bundle verify "$BUNDLE_LOCAL" 2>/dev/null; then
-    BUNDLE_OK=true
-    log "Recovered from .prev bundle"
-  else
-    rm -f "$BUNDLE_LOCAL"
-    log "WARN: No valid bundle available, falling back to first-time setup"
-  fi
-fi
-
-if [ "$BUNDLE_OK" = "true" ] && [ -f "$BUNDLE_LOCAL" ]; then
-  log "Bundle downloaded, restoring..."
-
-  if [ -d "$OPENCLAW_DIR" ] && [ ! -L "$OPENCLAW_DIR" ]; then
-    mv "$OPENCLAW_DIR" "${OPENCLAW_DIR}.default"
-  fi
-
-  git clone -q "$BUNDLE_LOCAL" "$OPENCLAW_DIR" 2>/dev/null
-  cd "$OPENCLAW_DIR" && git remote remove origin 2>/dev/null || true
-
-  log "Restored from NAS ($(cd "$OPENCLAW_DIR" && git log --oneline | wc -l) commits)"
-  rm -f "$BUNDLE_LOCAL"
-  chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
-  NAS_RESTORED=true
-fi
-
-# ============================================
-# 5. First time: init git repo from default config
-# ============================================
-if [ "$NAS_RESTORED" = "false" ]; then
-  log "No bundle on NAS, first time setup"
-
-  if [ -d "$OPENCLAW_DIR" ]; then
-    cd "$OPENCLAW_DIR"
-
-    cat > .gitignore << 'GITIGNORE'
-logs/
-*.lock
-*.tmp
-*.pid
-GITIGNORE
-
-    git init -q
-    git add -A
-    git -c user.name=claw -c user.email=claw@local \
-      commit -q -m "initial" 2>/dev/null || true
-    log "Initialized git repo in ${OPENCLAW_DIR}"
-
-    git bundle create "$BUNDLE_LOCAL" --all 2>/dev/null
-    if nfs-tool "$NAS_ADDR" write "${BUNDLE_REMOTE}.tmp" "$BUNDLE_LOCAL" 2>/dev/null && \
-       nfs-tool "$NAS_ADDR" rename "${BUNDLE_REMOTE}.tmp" "$BUNDLE_REMOTE" 2>/dev/null; then
-      log "Initial bundle uploaded to NAS"
-    else
-      log "WARN: Failed to upload initial bundle"
-    fi
-    rm -f "$BUNDLE_LOCAL"
-  fi
-
-  chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
-fi
-
-# ============================================
-# 6. Run hooks + inject API keys
+# 2. Run hooks + inject API keys
 # ============================================
 run_hook "post_restore"
 inject_api_keys "$CONFIG_FILE"
 run_hook "pre_start"
 
-chown -R 1000:1000 "$OPENCLAW_DIR" 2>/dev/null || true
 log "Done"
 exit 0

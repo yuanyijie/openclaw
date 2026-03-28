@@ -18,23 +18,6 @@ processes:
       fields_to_append:
         - level=INFO
 
-  nas-sync:
-    command: "/usr/local/bin/nas-sync.sh"
-    depends_on:
-      nas-init:
-        condition: process_completed_successfully
-    availability:
-      restart: "always"
-      backoff_seconds: 5
-      max_restarts: 10
-    log_configuration:
-      disable_json: true
-      no_metadata: false
-      add_timestamp: true
-      timestamp_format: "2006-01-02 15:04:05.000"
-      fields_to_append:
-        - level=INFO
-
   hook-runner:
     command: "/usr/local/bin/hook-runner.sh"
     depends_on:
@@ -74,7 +57,7 @@ processes:
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
       - NODE_ENV=production
-      - HOME=/home/user
+      - HOME=/home/user/capy
       - OPENCLAW_SKIP_CHANNELS=${OPENCLAW_SKIP_CHANNELS:-0}
       - OPENCLAW_DISABLE_BONJOUR=1
     log_configuration:

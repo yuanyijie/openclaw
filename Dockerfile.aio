@@ -50,19 +50,6 @@ RUN CI=true pnpm prune --prod && \
     true
 
 # ============================================================
-# Stage 1.5: Build nfs-tool (libnfs-based NFS file operations)
-# ============================================================
-FROM debian:bookworm-slim AS nfs-tool-builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libnfs-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY docker/config/nfs-tool.c /tmp/nfs-tool.c
-RUN gcc -O2 -o /usr/local/bin/nfs-tool /tmp/nfs-tool.c -lnfs \
-    && chmod 755 /usr/local/bin/nfs-tool
-
-# ============================================================
 # Stage 2: Extend AIO Sandbox image with openclaw
 # ============================================================
 FROM serverless-registry.cn-hangzhou.cr.aliyuncs.com/functionai/sandbox-all-in-one:v0.9.29
@@ -84,13 +71,9 @@ RUN curl -fsSL https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz \
        done \
     && node --version && npm --version && npx --version
 
-# --- NAS runtime deps ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnfs13 jq git && \
+    jq git && \
     rm -rf /var/lib/apt/lists/*
-
-# --- NAS: Copy pre-built nfs-tool binary ---
-COPY --from=nfs-tool-builder /usr/local/bin/nfs-tool /usr/local/bin/nfs-tool
 
 # Copy openclaw runtime
 COPY --from=build /app/dist         /app/openclaw/dist
@@ -111,11 +94,10 @@ COPY docker/config/process-compose.openclaw.yaml /etc/sandbox/config/process-com
 COPY docker/config/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
 RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
 
-# --- NAS: Init + sync scripts (managed by process-compose) ---
+# --- Lifecycle init + periodic hook runner (managed by process-compose) ---
 COPY docker/config/nas-init.sh /usr/local/bin/nas-init.sh
-COPY docker/config/nas-sync.sh /usr/local/bin/nas-sync.sh
 COPY docker/config/hook-runner.sh /usr/local/bin/hook-runner.sh
-RUN chmod +x /usr/local/bin/nas-init.sh /usr/local/bin/nas-sync.sh /usr/local/bin/hook-runner.sh
+RUN chmod +x /usr/local/bin/nas-init.sh /usr/local/bin/hook-runner.sh
 
 # --- Nginx configs: staging dir + direct copy to openresty (entrypoint does NOT auto-copy) ---
 RUN mkdir -p /etc/sandbox/config/nginx/http.d /etc/sandbox/config/nginx/conf.d
@@ -126,16 +108,16 @@ COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/
 
 ENV SXBT_BROWSER_CDP_PORT=18800
 
-# Default openclaw config (Kimi/Moonshot provider, apiKey from env)
-RUN mkdir -p /home/user/.openclaw
-COPY docker/config/openclaw.json /home/user/.openclaw/openclaw.json
+# Default openclaw config (Kimi/Moonshot provider, apiKey injected at runtime)
+RUN mkdir -p /home/user/capy/.openclaw
+COPY docker/config/openclaw.json /home/user/capy/.openclaw/openclaw.json
 
 # --- Pre-install WeChat channel plugin ---
-RUN HOME=/home/user \
+RUN HOME=/home/user/capy \
     npx -y @tencent-weixin/openclaw-weixin-cli@latest install 2>&1 \
     || echo "WARN: WeChat plugin install failed (non-fatal)"
 
-RUN chown -R 1000:1000 /home/user/.openclaw
+RUN chown -R 1000:1000 /home/user/capy
 
 ENV OPENCLAW_GATEWAY_PORT=18789
 ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/openclaw/extensions
