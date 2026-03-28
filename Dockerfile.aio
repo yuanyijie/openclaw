@@ -124,10 +124,7 @@ COPY docker/config/nginx-openclaw-routes.conf   /etc/sandbox/config/nginx/conf.d
 COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/http.d/openclaw-upstream.conf
 COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/conf.d/openclaw-routes.conf
 
-# --- Fix browsertool CDP port to 18800 ---
-RUN mkdir -p /etc/browsertool && \
-    sed -i 's/^SXBT_BROWSER_LAUNCH_ARGS=\(.*\)/SXBT_BROWSER_LAUNCH_ARGS=\1,--remote-debugging-port=18800/' /etc/browsertool/config.ini && \
-    sed -i 's/^SXBT_BROWSER_CDP_PORT=.*/SXBT_BROWSER_CDP_PORT=18800/' /etc/browsertool/config.ini
+ENV SXBT_BROWSER_CDP_PORT=18800
 
 # Default openclaw config (Kimi/Moonshot provider, apiKey from env)
 RUN mkdir -p /home/user/.openclaw
