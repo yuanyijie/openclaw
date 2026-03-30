@@ -12,10 +12,13 @@
 
 ```
 OpenClaw 状态目录：/home/user/capy/.openclaw
-                    （由 HOME=/home/user/capy 决定）
+                    （由 OPENCLAW_STATE_DIR 环境变量指定）
+
+默认配置备份：/app/openclaw-defaults/openclaw.json
+              （不会被 NAS 挂载遮蔽，nas-init 首次启动时自动拷贝到状态目录）
 
 进程管理：process-compose
-  ├── nas-init   （一次性，等 config + 跑钩子 + 注入 key）
+  ├── nas-init   （一次性，等 config + 确保配置存在 + 跑钩子 + 注入 key）
   ├── hook-runner（长驻，periodic 钩子）
   └── openclaw   （长驻，gateway 进程）
 ```
@@ -26,6 +29,8 @@ OpenClaw 状态目录：/home/user/capy/.openclaw
 claw-config.json 到达（后端 write_file 写入）
         │
    nas-init.sh
+        │
+        ├─ ensure openclaw.json exists ← NAS 空目录时从 /app/openclaw-defaults/ 拷贝
         │
         ├─ run_hook "post_restore"     ← 清理不兼容配置
         │
@@ -130,6 +135,7 @@ OpenClaw 请求 `http://127.0.0.1:18800/json/version` 获取 WebSocket 地址后
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `OPENCLAW_GATEWAY_PORT` | OpenClaw 监听端口 | `18789` |
+| `OPENCLAW_STATE_DIR` | OpenClaw 状态目录 | `/home/user/capy/.openclaw` |
 | `OPENCLAW_BUNDLED_PLUGINS_DIR` | 内置插件目录 | `/app/openclaw/extensions` |
 | `OPENCLAW_SKIP_CHANNELS` | 禁用 channel | `0` |
 | `SXBT_BROWSER_CDP_PORT` | Chrome CDP 端口 | `18800` |

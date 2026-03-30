@@ -120,6 +120,17 @@ done
 log "Config received after ${elapsed}s"
 
 # ============================================
+# 1.5 Ensure openclaw.json exists (NAS mount may shadow image defaults)
+# ============================================
+DEFAULTS_DIR="/app/openclaw-defaults"
+if [ ! -f "${OPENCLAW_DIR}/openclaw.json" ] && [ -f "${DEFAULTS_DIR}/openclaw.json" ]; then
+  log "openclaw.json missing in NAS dir, copying from image defaults"
+  mkdir -p "$OPENCLAW_DIR"
+  cp "$DEFAULTS_DIR/openclaw.json" "$OPENCLAW_DIR/openclaw.json"
+  chown 1000:1000 "$OPENCLAW_DIR/openclaw.json"
+fi
+
+# ============================================
 # 2. Run hooks + inject API keys
 # ============================================
 run_hook "post_restore"

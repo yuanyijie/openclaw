@@ -109,13 +109,11 @@ COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/
 ENV SXBT_BROWSER_CDP_PORT=18800
 
 # Default openclaw config (Kimi/Moonshot provider, apiKey injected at runtime)
-RUN mkdir -p /home/user/capy/.openclaw
+# Written to both the NAS-mountable path (fallback for no-NAS scenarios) and
+# a non-mountable backup path (survives NAS mount shadowing).
+RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults
 COPY docker/config/openclaw.json /home/user/capy/.openclaw/openclaw.json
-
-# --- Pre-install WeChat channel plugin ---
-RUN HOME=/home/user/capy \
-    npx -y @tencent-weixin/openclaw-weixin-cli@latest install 2>&1 \
-    || echo "WARN: WeChat plugin install failed (non-fatal)"
+COPY docker/config/openclaw.json /app/openclaw-defaults/openclaw.json
 
 RUN chown -R 1000:1000 /home/user/capy
 

@@ -63,7 +63,7 @@ create_sandbox()（含 NAS 挂载配置）
     │
     ├─ 后端调用 write_file("/tmp/claw-config.json", ...)  ← 必须在 60s 内完成
     │
-    ├─ nas-init 读取配置 → 执行钩子 → 注入 API key → exit 0
+    ├─ nas-init 读取配置 → 确保 openclaw.json 存在 → 执行钩子 → 注入 API key → exit 0
     │
     └─ openclaw 启动（读取 NAS 上已有的配置，或使用镜像默认配置）
 ```
@@ -90,8 +90,9 @@ create_sandbox()（含 NAS 挂载配置）
 
 ```
 沙箱启动 + NAS 挂载（目录为空）
+  → nas-init: 检测到 openclaw.json 不存在，从 /app/openclaw-defaults/ 拷贝默认配置
   → nas-init: 执行 hooks，注入 API key
-  → openclaw 启动（读取 /home/user/capy/.openclaw/openclaw.json，来自镜像默认）
+  → openclaw 启动（读取 NAS 上的 openclaw.json，内容为镜像默认 + API key 注入后的结果）
   → 用户操作产生的数据直接写入 NAS 上的目录
 ```
 
@@ -220,6 +221,7 @@ process-compose process logs openclaw
 
 ```
 [nas-init] 07:47:22 Config received after 3s
+[nas-init] 07:47:22 openclaw.json missing in NAS dir, copying from image defaults
 [nas-init] 07:47:22 Running hook: post_restore
 [nas-init] 07:47:22 [hook:post_restore] sanitized
 [nas-init] 07:47:22 Hook post_restore finished (exit=0)
@@ -234,7 +236,8 @@ process-compose process logs openclaw
 | 日志 | 含义 | 处理 |
 |------|------|------|
 | `Timeout waiting for config` | 60s 内未收到 config | 检查 write_file 是否及时调用 |
-| `WARN: openclaw.json not found` | NAS 挂载后目录为空，首次启动 | 正常（OpenClaw 自行初始化） |
+| `openclaw.json missing in NAS dir, copying from image defaults` | NAS 挂载后目录为空，首次启动 | 正常，已自动从镜像默认配置拷贝 |
+| `WARN: openclaw.json not found` | 默认配置备份也不存在 | 异常，检查镜像是否包含 `/app/openclaw-defaults/` |
 | `WARN: Failed to inject API keys` | `openclaw.json` 格式异常 | 检查钩子是否破坏了 JSON |
 
 ## 7. 注意事项
