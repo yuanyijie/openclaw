@@ -84,6 +84,9 @@ COPY --from=build /app/docs/reference/templates /app/openclaw/docs/reference/tem
 COPY --from=build /app/extensions /app/openclaw/extensions
 RUN chmod 755 /app/openclaw/openclaw.mjs
 
+# --- Custom SOUL.md template (overrides default English template) ---
+COPY docker/config/SOUL.md /app/openclaw/docs/reference/templates/SOUL.md
+
 # --- Fix #2: Create symlink for warning-filter.js ---
 RUN ln -sf /app/openclaw/dist/infra/warning-filter.js /app/openclaw/dist/warning-filter.js
 
