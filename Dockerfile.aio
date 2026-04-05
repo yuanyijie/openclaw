@@ -72,7 +72,7 @@ RUN curl -fsSL https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz \
     && node --version && npm --version && npx --version
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    jq git fonts-noto-cjk && \
+    jq git fonts-noto-cjk python3-pip python3-venv && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy openclaw runtime
@@ -110,6 +110,7 @@ COPY docker/config/nginx-openclaw-upstream.conf /usr/local/openresty/nginx/conf/
 COPY docker/config/nginx-openclaw-routes.conf   /usr/local/openresty/nginx/conf/conf.d/openclaw-routes.conf
 
 ENV SXBT_BROWSER_CDP_PORT=18800
+ENV HF_ENDPOINT=https://hf-mirror.com
 
 # Default openclaw config (Kimi/Moonshot provider, apiKey injected at runtime)
 # Written to both the NAS-mountable path (fallback for no-NAS scenarios) and
@@ -118,7 +119,13 @@ RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults
 COPY docker/config/openclaw.json /home/user/capy/.openclaw/openclaw.json
 COPY docker/config/openclaw.json /app/openclaw-defaults/openclaw.json
 
-RUN chown -R 1000:1000 /home/user/capy
+# --- Runtime mirrors for China mainland (npm, pip, HuggingFace) ---
+RUN echo 'registry=https://registry.npmmirror.com' >> /home/user/.npmrc && \
+    mkdir -p /home/user/.pip && \
+    printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrusted-host = mirrors.aliyun.com\nbreak-system-packages = true\n' \
+      > /home/user/.pip/pip.conf
+
+RUN chown -R 1000:1000 /home/user/capy /home/user/.npmrc /home/user/.pip
 
 ENV OPENCLAW_GATEWAY_PORT=18789
 ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/openclaw/extensions
