@@ -49,15 +49,16 @@ processes:
         host: localhost
         port: ${OPENCLAW_GATEWAY_PORT:-18789}
         path: /healthz
-      initial_delay_seconds: 2
-      period_seconds: 10
+      initial_delay_seconds: 15
+      period_seconds: 5
       timeout_seconds: 3
       success_threshold: 1
-      failure_threshold: 3
+      failure_threshold: 12
     environment:
       - OPENCLAW_GATEWAY_PORT=18789
       - NODE_ENV=production
       - HOME=/home/user
+      - OPENCLAW_HOME=/home/user/capy
       - OPENCLAW_STATE_DIR=/home/user/capy/.openclaw
       - OPENCLAW_SKIP_CHANNELS=${OPENCLAW_SKIP_CHANNELS:-0}
       - OPENCLAW_DISABLE_BONJOUR=1
