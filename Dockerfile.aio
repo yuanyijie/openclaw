@@ -72,7 +72,7 @@ RUN curl -fsSL https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz \
     && node --version && npm --version && npx --version
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    jq git && \
+    jq git fonts-noto-cjk && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy openclaw runtime
