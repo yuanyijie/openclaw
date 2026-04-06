@@ -29,6 +29,13 @@
     "noSandbox": true
   },
   "skills": {
+    "allowBundled": [
+      "canvas", "clawhub", "gh-issues", "github", "healthcheck",
+      "himalaya", "mcporter", "nano-pdf", "node-connect", "notion",
+      "obsidian", "openai-whisper", "oracle", "session-logs",
+      "sherpa-onnx-tts", "skill-creator", "summarize", "tmux",
+      "trello", "video-frames", "weather", "camsnap", "1password"
+    ],
     "load": {
       "extraDirs": ["/mnt/platform/skills"]
     }

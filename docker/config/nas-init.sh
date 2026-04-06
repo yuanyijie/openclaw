@@ -131,22 +131,45 @@ if [ ! -f "${OPENCLAW_DIR}/openclaw.json" ] && [ -f "${DEFAULTS_DIR}/openclaw.js
 fi
 
 # ============================================
-# 2. Ensure platform skills dir in extraDirs (old NAS configs may lack it)
+# 2. Ensure platform skills dir in extraDirs + sync allowBundled whitelist
+#    (old NAS configs may lack these; never overwrite user-customized values)
 # ============================================
 PLATFORM_SKILLS_DIR="/mnt/platform/skills"
 if [ -f "${OPENCLAW_DIR}/openclaw.json" ]; then
   python3 -c "
 import json, sys
-p, d = sys.argv[1], sys.argv[2]
+p, d, defaults_path = sys.argv[1], sys.argv[2], sys.argv[3]
+changed = False
+
 with open(p) as f: cfg = json.load(f)
+
+# Ensure extraDirs contains platform skills dir
 dirs = cfg.get('skills', {}).get('load', {}).get('extraDirs', [])
 if d not in dirs:
     cfg.setdefault('skills', {}).setdefault('load', {}).setdefault('extraDirs', []).append(d)
-    with open(p, 'w') as f: json.dump(cfg, f, indent=2)
+    changed = True
     print('Injected ' + d + ' into skills.load.extraDirs')
 else:
     print('Platform skills dir already configured')
-" "${OPENCLAW_DIR}/openclaw.json" "$PLATFORM_SKILLS_DIR" 2>&1 | while IFS= read -r line; do log "$line"; done
+
+# Sync allowBundled from image defaults only if not set by user
+if 'allowBundled' not in cfg.get('skills', {}):
+    try:
+        with open(defaults_path) as f: defaults = json.load(f)
+        allow = defaults.get('skills', {}).get('allowBundled')
+        if allow:
+            cfg.setdefault('skills', {})['allowBundled'] = allow
+            changed = True
+            print('Synced allowBundled whitelist from image defaults')
+    except Exception as e:
+        print('WARN: could not read defaults: ' + str(e))
+else:
+    print('allowBundled already set, skipping sync')
+
+if changed:
+    with open(p, 'w') as f: json.dump(cfg, f, indent=2)
+" "${OPENCLAW_DIR}/openclaw.json" "$PLATFORM_SKILLS_DIR" "${DEFAULTS_DIR}/openclaw.json" \
+  2>&1 | while IFS= read -r line; do log "$line"; done
 fi
 
 # ============================================

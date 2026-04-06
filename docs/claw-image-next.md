@@ -216,6 +216,25 @@ rm -rf /home/user/capy/.openclaw/extensions 2>/dev/null || true
 - 侧边栏：黄色脉动点表示 provisioning，绿色表示 running
 - chat 输入和文件操作在 provisioning 期间禁用
 
+## Skills / Extensions 精简策略
+
+镜像针对国内沙箱环境做了精简，排除了国内不可用或无意义的 skills 和 extensions。
+
+### Bundled Skills 白名单
+
+通过 `openclaw.json` 的 `skills.allowBundled` 字段控制（软配置，用户可自行修改）。保留 23 个国内可用的 skills，排除 28 个（macOS only、被墙海外服务、极小众硬件等）。
+
+### Extensions 裁剪
+
+构建时物理删除约 50 个国内无用的 extensions（被墙的模型 Provider、通道、搜索服务等），保留约 30 个：
+
+- **国内模型 Provider**：moonshot, kimi-coding, deepseek, modelstudio, qianfan, volcengine, minimax, xiaomi, zai, qwen-portal-auth, byteplus
+- **本地/自托管**：ollama, vllm, sglang, huggingface
+- **通道**：feishu, telegram
+- **工具**：tavily, duckduckgo, firecrawl, memory-core, memory-lancedb, llm-task, lobster, diffs, diagnostics-otel, open-prose, acpx, openshell
+
+如需恢复被删除的 extension，需重新构建镜像。
+
 ## 排障
 
 ### 查看进程日志

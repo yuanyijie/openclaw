@@ -43,7 +43,7 @@ processes:
     availability:
       restart: "always"
       backoff_seconds: 3
-      max_restarts: 5
+      max_restarts: 10
     readiness_probe:
       http_get:
         host: localhost

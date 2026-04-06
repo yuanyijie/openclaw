@@ -82,6 +82,17 @@ COPY --from=build /app/package.json /app/openclaw/package.json
 COPY --from=build /app/openclaw.mjs /app/openclaw/openclaw.mjs
 COPY --from=build /app/docs/reference/templates /app/openclaw/docs/reference/templates
 COPY --from=build /app/extensions /app/openclaw/extensions
+# Prune extensions not useful in China mainland sandbox (~50 plugins removed)
+RUN cd /app/openclaw/extensions && rm -rf \
+    openai anthropic google xai mistral amazon-bedrock nvidia groq \
+    perplexity together openrouter chutes venice synthetic \
+    vercel-ai-gateway cloudflare-ai-gateway copilot-proxy \
+    github-copilot opencode opencode-go kilocode fal deepgram \
+    elevenlabs microsoft brave exa \
+    discord slack whatsapp signal msteams googlechat line irc \
+    twitch nostr nextcloud-talk synology-chat matrix mattermost \
+    bluebubbles imessage tlon zalo zalouser \
+    device-pair phone-control voice-call talk-voice thread-ownership
 RUN chmod 755 /app/openclaw/openclaw.mjs
 
 # --- Custom SOUL.md template (overrides default English template) ---
