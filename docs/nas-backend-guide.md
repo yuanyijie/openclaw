@@ -240,10 +240,73 @@ process-compose process logs openclaw
 | `WARN: openclaw.json not found` | 默认配置备份也不存在 | 异常，检查镜像是否包含 `/app/openclaw-defaults/` |
 | `WARN: Failed to inject API keys` | `openclaw.json` 格式异常 | 检查钩子是否破坏了 JSON |
 
-## 7. 注意事项
+## 7. 平台公共 NAS（只读共享存储）
+
+除了用户级 NAS，镜像还支持一个 **平台公共 NAS**，挂载到 `/mnt/platform/`（只读），用于存放所有实例共享的资源。
+
+### 挂载路径
+
+```
+NAS 公共目录 → /mnt/platform/   (readonly)
+```
+
+### 目录结构
+
+```
+/mnt/platform/
+├── skills/                     # 平台通用 skills（OpenClaw extraDirs）
+│   ├── my-custom-skill/
+│   │   └── SKILL.md
+│   └── ...
+├── hooks/                      # (预留) 平台通用 hooks
+└── templates/                  # (预留) 项目模板 / 种子数据
+```
+
+### 后端创建沙箱时传参
+
+```python
+sandbox = await create_sandbox(
+    template="openclaw-template",
+    nas_mounts=[
+        {
+            "nas_addr": "0b8654bd8f-oxi11.cn-hangzhou.nas.aliyuncs.com",
+            "nas_dir": f"/{env}/users/{user_id}/claws/{claw_id}",
+            "mount_path": "/home/user/capy/.openclaw",
+            "readonly": False,
+        },
+        {
+            "nas_addr": "0b8654bd8f-oxi11.cn-hangzhou.nas.aliyuncs.com",
+            "nas_dir": "/shared/platform",
+            "mount_path": "/mnt/platform",
+            "readonly": True,
+        },
+    ]
+)
+```
+
+### Skills 生效机制
+
+镜像默认 `openclaw.json` 已配置 `skills.load.extraDirs: ["/mnt/platform/skills"]`。`nas-init.sh` 会自动为已有的旧 NAS 配置补充该字段，无需后端额外干预。
+
+Skills 优先级（从高到低）：
+1. `<workspace>/skills` — 用户工作区 skills
+2. `~/.openclaw/skills` — 用户托管 skills（NAS 持久化）
+3. bundled skills — 随镜像发布
+4. `/mnt/platform/skills` — **平台公共 skills（最低优先级）**
+
+用户可以在自己目录中放置同名 skill 来覆盖平台版本。
+
+### 更新 skills
+
+NAS 是实时挂载。在 NAS 上更新 `/shared/platform/skills/` 后：
+- **新创建的沙箱**：自动生效
+- **已运行的沙箱**：OpenClaw 内置 skills watcher 会自动检测变化，下一个 agent turn 即生效
+
+## 8. 注意事项
 
 1. **write_file 时机**：必须在沙箱启动后 60 秒内写入，越早越好
-2. **NAS 挂载路径**：固定挂载到 `/home/user/capy/.openclaw`，后端不可修改
-3. **路径唯一性**：同一个 NAS 目录不要给多个同时运行的沙箱挂载
-4. **数据零丢失**：原生挂载无同步延迟，沙箱销毁时数据已在 NAS 上
-5. **钩子幂等性**：钩子脚本可能在每次沙箱重建时执行，需保证幂等
+2. **用户 NAS 挂载路径**：固定挂载到 `/home/user/capy/.openclaw`，后端不可修改
+3. **平台 NAS 挂载路径**：固定挂载到 `/mnt/platform/`，只读
+4. **路径唯一性**：同一个用户 NAS 目录不要给多个同时运行的沙箱挂载
+5. **数据零丢失**：原生挂载无同步延迟，沙箱销毁时数据已在 NAS 上
+6. **钩子幂等性**：钩子脚本可能在每次沙箱重建时执行，需保证幂等

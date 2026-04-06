@@ -17,8 +17,13 @@ OpenClaw 状态目录：/home/user/capy/.openclaw
 默认配置备份：/app/openclaw-defaults/openclaw.json
               （不会被 NAS 挂载遮蔽，nas-init 首次启动时自动拷贝到状态目录）
 
+平台公共存储：/mnt/platform/              ← 只读 NAS 挂载
+              ├── skills/                  ← 平台通用 skills (extraDirs)
+              ├── hooks/                   ← (预留) 平台通用 hooks
+              └── templates/               ← (预留) 项目模板
+
 进程管理：process-compose
-  ├── nas-init   （一次性，等 config + 确保配置存在 + 跑钩子 + 注入 key）
+  ├── nas-init   （一次性，等 config + 确保配置存在 + 注入 extraDirs + 跑钩子 + 注入 key）
   ├── hook-runner（长驻，periodic 钩子）
   └── openclaw   （长驻，gateway 进程）
 ```
@@ -31,6 +36,8 @@ claw-config.json 到达（后端 write_file 写入）
    nas-init.sh
         │
         ├─ ensure openclaw.json exists ← NAS 空目录时从 /app/openclaw-defaults/ 拷贝
+        │
+        ├─ ensure platform skills dir  ← 旧 NAS 配置自动补充 skills.load.extraDirs
         │
         ├─ run_hook "post_restore"     ← 清理不兼容配置
         │
@@ -101,13 +108,21 @@ claw-config.json 到达（后端 write_file 写入）
 
 NAS 由平台原生目录挂载实现，镜像内**无任何 NFS 操作代码**。
 
-挂载目标目录即为 OpenClaw 状态目录：
+### 用户 NAS（读写）
 
 ```
 NAS 挂载路径 → /home/user/capy/.openclaw
 ```
 
 OpenClaw 所有数据（配置、会话、memory、workspace）自动落到 NAS 上，沙箱重建后数据自然恢复。
+
+### 平台公共 NAS（只读）
+
+```
+NAS 挂载路径 → /mnt/platform/
+```
+
+存放所有实例共享的资源（skills、hooks、模板等）。镜像默认配置已将 `/mnt/platform/skills` 加入 `skills.load.extraDirs`，OpenClaw 自动加载。未挂载时为空目录，不影响启动。
 
 ## 浏览器集成
 

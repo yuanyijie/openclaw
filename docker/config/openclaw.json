@@ -28,6 +28,11 @@
     "attachOnly": true,
     "noSandbox": true
   },
+  "skills": {
+    "load": {
+      "extraDirs": ["/mnt/platform/skills"]
+    }
+  },
   "models": {
     "mode": "merge",
     "providers": {

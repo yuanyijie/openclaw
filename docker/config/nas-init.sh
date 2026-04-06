@@ -131,7 +131,26 @@ if [ ! -f "${OPENCLAW_DIR}/openclaw.json" ] && [ -f "${DEFAULTS_DIR}/openclaw.js
 fi
 
 # ============================================
-# 2. Run hooks + inject API keys
+# 2. Ensure platform skills dir in extraDirs (old NAS configs may lack it)
+# ============================================
+PLATFORM_SKILLS_DIR="/mnt/platform/skills"
+if [ -f "${OPENCLAW_DIR}/openclaw.json" ]; then
+  python3 -c "
+import json, sys
+p, d = sys.argv[1], sys.argv[2]
+with open(p) as f: cfg = json.load(f)
+dirs = cfg.get('skills', {}).get('load', {}).get('extraDirs', [])
+if d not in dirs:
+    cfg.setdefault('skills', {}).setdefault('load', {}).setdefault('extraDirs', []).append(d)
+    with open(p, 'w') as f: json.dump(cfg, f, indent=2)
+    print('Injected ' + d + ' into skills.load.extraDirs')
+else:
+    print('Platform skills dir already configured')
+" "${OPENCLAW_DIR}/openclaw.json" "$PLATFORM_SKILLS_DIR" 2>&1 | while IFS= read -r line; do log "$line"; done
+fi
+
+# ============================================
+# 3. Run hooks + inject API keys
 # ============================================
 run_hook "post_restore"
 inject_api_keys "$CONFIG_FILE"

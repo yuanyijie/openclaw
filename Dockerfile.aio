@@ -115,7 +115,7 @@ ENV HF_ENDPOINT=https://hf-mirror.com
 # Default openclaw config (Kimi/Moonshot provider, apiKey injected at runtime)
 # Written to both the NAS-mountable path (fallback for no-NAS scenarios) and
 # a non-mountable backup path (survives NAS mount shadowing).
-RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults
+RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults /mnt/platform/skills
 COPY docker/config/openclaw.json /home/user/capy/.openclaw/openclaw.json
 COPY docker/config/openclaw.json /app/openclaw-defaults/openclaw.json
 
