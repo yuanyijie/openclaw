@@ -20,6 +20,19 @@
         "moonshot/kimi-k2.5": {
           "alias": "Kimi K2.5"
         }
+      },
+      "compaction": {
+        "model": "moonshot/kimi-k2.5"
+      },
+      "blockStreamingDefault": "on",
+      "blockStreamingBreak": "text_end",
+      "blockStreamingChunk": {
+        "minChars": 200,
+        "maxChars": 500
+      },
+      "pruning": {
+        "enabled": true,
+        "maxAge": 10
       }
     }
   },

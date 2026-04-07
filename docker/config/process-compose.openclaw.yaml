@@ -3,7 +3,7 @@ version: "0.5"
 log_level: info
 
 environment:
-  - PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+  - PATH=/mnt/platform/bins:/mnt/platform/npm-global/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
 processes:
   nas-init:
@@ -62,6 +62,7 @@ processes:
       - OPENCLAW_STATE_DIR=/home/user/capy/.openclaw
       - OPENCLAW_SKIP_CHANNELS=${OPENCLAW_SKIP_CHANNELS:-0}
       - OPENCLAW_DISABLE_BONJOUR=1
+      - PYTHONPATH=/mnt/platform/python-pkgs/lib/python3/site-packages
     log_configuration:
       disable_json: true
       no_metadata: false

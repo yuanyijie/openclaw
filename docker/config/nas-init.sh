@@ -173,6 +173,14 @@ if changed:
 fi
 
 # ============================================
+# 2.5 Refresh font cache if platform fonts dir has content
+# ============================================
+if [ -d "/mnt/platform/fonts" ] && [ "$(ls -A /mnt/platform/fonts 2>/dev/null)" ]; then
+  log "Refreshing font cache for platform fonts"
+  fc-cache -f /mnt/platform/fonts 2>/dev/null || true
+fi
+
+# ============================================
 # 3. Run hooks + inject API keys
 # ============================================
 run_hook "post_restore"

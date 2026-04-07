@@ -126,7 +126,14 @@ ENV HF_ENDPOINT=https://hf-mirror.com
 # Default openclaw config (Kimi/Moonshot provider, apiKey injected at runtime)
 # Written to both the NAS-mountable path (fallback for no-NAS scenarios) and
 # a non-mountable backup path (survives NAS mount shadowing).
-RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults /mnt/platform/skills
+# --- Platform NAS font path (scanned at runtime if /mnt/platform/fonts/ exists) ---
+RUN mkdir -p /etc/fonts/conf.d && \
+    printf '<fontconfig>\n  <dir>/mnt/platform/fonts</dir>\n</fontconfig>\n' \
+      > /etc/fonts/conf.d/99-platform-nas.conf
+
+RUN mkdir -p /home/user/capy/.openclaw /app/openclaw-defaults \
+    /mnt/platform/skills /mnt/platform/bins /mnt/platform/npm-global/bin \
+    /mnt/platform/python-pkgs/lib/python3/site-packages /mnt/platform/fonts
 COPY docker/config/openclaw.json /home/user/capy/.openclaw/openclaw.json
 COPY docker/config/openclaw.json /app/openclaw-defaults/openclaw.json
 
